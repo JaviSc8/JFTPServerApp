@@ -34,7 +34,7 @@ public class JFTPServerApp {
 	}
 
 	public static void main(String[] args) {
-        int port = 21;
+        int port = 2121;
         String username = "javier"; 
         String password = "jrive"; 
         String baseDirectory = JFTPServerUtil.selectDirectory();
