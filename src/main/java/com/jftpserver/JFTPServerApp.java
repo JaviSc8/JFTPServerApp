@@ -1,42 +1,54 @@
 package com.jftpserver;
 
-import java.io.File;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.Enumeration;
-
-import javax.swing.JFileChooser;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.ftpserver.FtpServer;
 import org.apache.ftpserver.FtpServerFactory;
-import org.apache.ftpserver.ftplet.*;
+import org.apache.ftpserver.ftplet.AuthorizationRequest;
+import org.apache.ftpserver.ftplet.FtpException;
+import org.apache.ftpserver.ftplet.Ftplet;
+import org.apache.ftpserver.ftplet.UserManager;
 import org.apache.ftpserver.listener.ListenerFactory;
-import org.apache.ftpserver.usermanager.*;
+import org.apache.ftpserver.usermanager.PropertiesUserManagerFactory;
 import org.apache.ftpserver.usermanager.impl.BaseUser;
 import org.apache.ftpserver.usermanager.impl.WriteRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.jftpserver.ftplet.CustomFtplet;
+import com.jftpserver.util.JFTPServerUtil;
 
 public class JFTPServerApp {
-    public static void main(String[] args) {
-        int port = 2221; // Puerto del servidor FTP
-        String username = "javier"; // Nombre de usuario del servidor FTP
-        String password = "jrive"; // Contraseña del servidor FTP
-        String baseDirectory = selectDirectory(); // Ruta base del sistema de ficheros que se expondrá
+	private static final Logger log = LoggerFactory.getLogger(JFTPServerApp.class);
+	private static AtomicInteger connectionCounter = new AtomicInteger(0);
+	private static FtpServer ftpServer;
+	  
+    public static AtomicInteger getConnectionCounter() {
+		return connectionCounter;
+	}
 
-        // Crea la fábrica del servidor FTP
+	public static FtpServer getFtpServer() {
+		return ftpServer;
+	}
+
+	public static void main(String[] args) {
+        int port = 21;
+        String username = "javier"; 
+        String password = "jrive"; 
+        String baseDirectory = JFTPServerUtil.selectDirectory();
+
         FtpServerFactory serverFactory = new FtpServerFactory();
 
-        // Configura el listener del servidor FTP
         ListenerFactory listenerFactory = new ListenerFactory();
         listenerFactory.setPort(port);
-        listenerFactory.setServerAddress(getLocalIpAddress());
+        listenerFactory.setServerAddress(JFTPServerUtil.getLocalIpAddress());
         serverFactory.addListener("default", listenerFactory.createListener());
 
-        // Crea el gestor de usuarios
         PropertiesUserManagerFactory userManagerFactory = new PropertiesUserManagerFactory();
         UserManager userManager = userManagerFactory.createUserManager();
 
-        // Crea un usuario con permisos de lectura y escritura en la ruta base
         BaseUser user = new BaseUser();
         user.setName(username);
         user.setPassword(password);
@@ -47,60 +59,22 @@ public class JFTPServerApp {
         try {
 			userManager.save(user);
 		} catch (FtpException e) {
-			System.out.println("Existe algún problema al crear el usuario");
-			e.printStackTrace();
+			log.warn("Error al crear el usuario {}", e.getMessage());
 		}
 
-        // Configura el gestor de usuarios del servidor FTP
         serverFactory.setUserManager(userManager);
 
-        FtpServer ftpServer = serverFactory.createServer();
+        Map<String, Ftplet> ftpletMap = new HashMap<>();
+        CustomFtplet customFtplet = new CustomFtplet();
+        ftpletMap.put("CustomFtplet", customFtplet);
+        serverFactory.setFtplets(ftpletMap);
+
+        ftpServer = serverFactory.createServer();
         try {
-            ftpServer.start();
-            System.out.println("Servidor FTP en ejecución en " + getLocalIpAddress() +":"+ port);
+            ftpServer.start();       
+            log.info("Servidor FTP ejecutandose: {}:{}", JFTPServerUtil.getLocalIpAddress(), port);
         } catch (FtpException e) {
-            System.out.println("Error al iniciar el servidor FTP: " + e.getMessage());
-        }
-    }
-    
-    private static String getLocalIpAddress() {
-        try {
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            while (interfaces.hasMoreElements()) {
-                NetworkInterface networkInterface = interfaces.nextElement();
-                if (networkInterface.isLoopback() || !networkInterface.isUp()) {
-                    continue;
-                }
-
-                Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress address = addresses.nextElement();
-                    if (address.isLoopbackAddress()) {
-                        continue;
-                    }
-                    if (address.getHostAddress().contains(":")) {
-                        continue; // Ignorar direcciones IPv6
-                    }
-                    return address.getHostAddress();
-                }
-            }
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    
-    private static String selectDirectory() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-
-        int result = fileChooser.showOpenDialog(null);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
-            return selectedFile.getAbsolutePath();
-        } else {
-            System.exit(0);
-            return null;
-        }
+            log.error("Error al iniciar el servidor FTP: "+ e.getMessage(), e);
+        } 
     }
 }
