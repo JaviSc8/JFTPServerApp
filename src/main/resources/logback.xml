@@ -1,12 +1,9 @@
 <configuration>
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-    <!-- Configura el patrón de salida de los logs -->
     <layout>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </layout>
   </appender>
-  
-  <!-- Configura el nivel de log para el logger raíz -->
   <root level="info">
     <appender-ref ref="CONSOLE"/>
   </root>

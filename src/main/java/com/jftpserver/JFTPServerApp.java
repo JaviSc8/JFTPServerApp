@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.ftpserver.ConnectionConfigFactory;
 import org.apache.ftpserver.FtpServer;
 import org.apache.ftpserver.FtpServerFactory;
 import org.apache.ftpserver.ftplet.AuthorizationRequest;
@@ -19,7 +20,15 @@ import org.slf4j.LoggerFactory;
 
 import com.jftpserver.ftplet.CustomFtplet;
 import com.jftpserver.util.JFTPServerUtil;
-
+/**
+ * JFTPServerApp
+ * 
+ * Anonymous server, to establish a username and password:
+ * 
+ * 	user.setName("User");
+ * 	user.setPassword("Password");
+ * 
+ */
 public class JFTPServerApp {
 	private static final Logger log = LoggerFactory.getLogger(JFTPServerApp.class);
 	private static AtomicInteger connectionCounter = new AtomicInteger(0);
@@ -35,8 +44,6 @@ public class JFTPServerApp {
 
 	public static void main(String[] args) {
         int port = 2121;
-        String username = "javier"; 
-        String password = "jrive"; 
         String baseDirectory = JFTPServerUtil.selectDirectory();
 
         FtpServerFactory serverFactory = new FtpServerFactory();
@@ -44,14 +51,18 @@ public class JFTPServerApp {
         ListenerFactory listenerFactory = new ListenerFactory();
         listenerFactory.setPort(port);
         listenerFactory.setServerAddress(JFTPServerUtil.getLocalIpAddress());
+        
+        ConnectionConfigFactory connectionConfigFactory = new ConnectionConfigFactory();
+        connectionConfigFactory.setAnonymousLoginEnabled(true);
+        
         serverFactory.addListener("default", listenerFactory.createListener());
+        serverFactory.setConnectionConfig(connectionConfigFactory.createConnectionConfig());
 
         PropertiesUserManagerFactory userManagerFactory = new PropertiesUserManagerFactory();
         UserManager userManager = userManagerFactory.createUserManager();
 
         BaseUser user = new BaseUser();
-        user.setName(username);
-        user.setPassword(password);
+        user.setName("anonymous");
         user.setHomeDirectory(baseDirectory);
         user.setEnabled(true);
         AuthorizationRequest authorizationRequest = new WriteRequest();
